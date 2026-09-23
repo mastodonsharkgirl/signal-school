@@ -27,7 +27,7 @@ describe('Signal School progress', () => {
     expect(exercise).toBeDefined();
     const result = evaluateExercise(exercise!, 'publish-all');
     expect(result.correct).toBe(false);
-    expect(result.failureMode).toMatch(/unsupported claim/i);
+    expect(result.failureMode).toMatch(/claim the notes do not support/i);
   });
 
   it('builds a prompt and marks only supplied brief fields as complete', () => {
@@ -49,7 +49,7 @@ describe('Signal School progress', () => {
       false,
       true,
     ]);
-    expect(buildPrompt(parts)).toContain('Audience: A project partner');
+    expect(buildPrompt(parts)).toContain('Who it is for: A project partner');
     expect(buildPrompt({ ...parts, task: '' })).toBe('');
   });
 });
