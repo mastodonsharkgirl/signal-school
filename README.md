@@ -27,6 +27,7 @@ Inputs and progress remain in browser memory and clear on refresh. No server, tr
 
 ## Demo
 
-https://saran-info-preview.pages.dev/signal-school
+https://saran.info/signal-school
 
-These are preview deployments. The standalone source uses a minimal shell around the same interactive modules.
+The canonical deployment is linked above. The standalone source uses a minimal shell around the same interactive modules.
+

@@ -48,7 +48,7 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
       <header className="signal-header">
         <a href={portfolioHref}>← Saran Vashisht</a>
         <p>
-          Signal School <span>private preview</span>
+          Signal School <span>learn by doing</span>
         </p>
         <button type="button" onClick={reset}>
           <RotateCcw aria-hidden="true" /> Reset course
