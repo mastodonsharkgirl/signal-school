@@ -362,6 +362,54 @@
   }
 }
 
+.decision-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+.decision-grid label,
+.decision-grid select {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Controls must shrink with a 320px viewport; no page-level clipping. */
+.signal-school,
+.signal-content,
+.lesson-panel,
+.lesson-copy,
+.lesson-check,
+.exercise-options,
+.decision-grid,
+.final-challenge,
+.final-challenge fieldset,
+.prompt-lab,
+.lab-workspace {
+  min-width: 0;
+}
+.exercise-options select,
+.decision-grid select,
+.final-challenge input,
+.final-challenge label {
+  max-width: 100%;
+}
+@media (max-width: 480px) {
+  .signal-header {
+    gap: 0.5rem;
+  }
+  .signal-header button {
+    padding: 0.45rem;
+  }
+  .final-challenge {
+    padding: 1.25rem;
+  }
+  .exercise-options label {
+    overflow-wrap: anywhere;
+  }
+  .exercise-options select {
+    width: 100%;
+  }
+}
+
 /* Compact course entry so the first practical exercise starts within the viewport. */
 .signal-hero {
   min-height: 240px;
@@ -559,5 +607,20 @@
   }
   .signal-content {
     min-width: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .signal-content,
+  .signal-header {
+    width: calc(100% - 1.5rem);
+  }
+  .lesson-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .lesson-copy,
+  .lesson-check {
+    width: 100%;
+    max-width: 100%;
   }
 }

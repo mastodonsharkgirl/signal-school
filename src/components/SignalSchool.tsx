@@ -56,6 +56,7 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
   const [evidenceLabels, setEvidenceLabels] = useState<Record<string, string>>({});
   const [structureOrder, setStructureOrder] = useState(['pending', 'schedule', 'bring']);
   const [rubricScores, setRubricScores] = useState<Record<string, string>>({});
+  const [rubricPick, setRubricPick] = useState<string | null>(null);
   const [briefParts, setBriefParts] = useState<Record<string, string>>({});
   const [boundaryParts, setBoundaryParts] = useState<Record<string, string>>({});
   const lesson = courseLessons[active];
@@ -77,6 +78,7 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
     setEvidenceLabels({});
     setStructureOrder(['pending', 'schedule', 'bring']);
     setRubricScores({});
+    setRubricPick(null);
     setBriefParts({});
     setBoundaryParts({});
   };
@@ -92,6 +94,7 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
     setEvidenceLabels({});
     setStructureOrder(['pending', 'schedule', 'bring']);
     setRubricScores({});
+    setRubricPick(null);
     setBriefParts({});
     setBoundaryParts({});
   };
@@ -447,13 +450,16 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
                   review before sending.”
                 </p>
                 <p>
-                  <strong>Draft B:</strong> “All repairs are guaranteed and both volunteers are
+                  <strong>Draft B:</strong> “All repairs are guaranteed; both volunteers are
                   confirmed. Send this immediately.”
                 </p>
                 {[
-                  ['format', 'Does Draft A use the requested three-bullet format?'],
-                  ['evidence', 'Does Draft A preserve the pending volunteer status?'],
-                  ['constraint', 'Does Draft A stay a draft for organiser review?'],
+                  ['a-format', 'Does Draft A use the requested three-bullet format?', 'yes'],
+                  ['a-evidence', 'Does Draft A preserve the pending volunteer status?', 'yes'],
+                  ['a-boundary', 'Does Draft A stay a draft for organiser review?', 'yes'],
+                  ['b-format', 'Does Draft B use the requested three-bullet format?', 'no'],
+                  ['b-evidence', 'Does Draft B preserve the pending volunteer status?', 'no'],
+                  ['b-boundary', 'Does Draft B stay a draft for organiser review?', 'no'],
                 ].map(([id, label]) => (
                   <label key={id}>
                     {label}
@@ -475,12 +481,31 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
                     </span>
                   </label>
                 ))}
+                <div className="rubric-choice" aria-label="Choose the defensible draft">
+                  <span>Which draft is defensible?</span>
+                  {['A', 'B'].map((draft) => (
+                    <button
+                      type="button"
+                      key={draft}
+                      aria-pressed={rubricPick === draft}
+                      onClick={() => setRubricPick(draft)}
+                    >
+                      Draft {draft}
+                    </button>
+                  ))}
+                </div>
                 <button
                   type="button"
                   onClick={() => {
                     const correct =
-                      Object.values(rubricScores).length === 3 &&
-                      Object.values(rubricScores).every((value) => value === 'yes');
+                      Object.keys(rubricScores).length === 6 &&
+                      rubricScores['a-format'] === 'yes' &&
+                      rubricScores['a-evidence'] === 'yes' &&
+                      rubricScores['a-boundary'] === 'yes' &&
+                      rubricScores['b-format'] === 'no' &&
+                      rubricScores['b-evidence'] === 'no' &&
+                      rubricScores['b-boundary'] === 'no' &&
+                      rubricPick === 'A';
                     setSelected(correct ? 'rubric' : 'confident');
                     if (correct) setProgress((current) => markLessonComplete(current, lesson.id));
                   }}
