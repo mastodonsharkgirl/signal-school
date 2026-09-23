@@ -135,7 +135,11 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
                 aria-live="polite"
                 className={answered === lesson.answer ? 'coaching good' : 'coaching'}
               >
-                {answered === lesson.answer ? `+${awarded ? '60' : '0'} XP · ` : 'Try again · '}
+                {answered === lesson.answer
+                  ? awarded
+                    ? '+60 XP · '
+                    : 'Already earned · '
+                  : 'Try again · '}
                 {lesson.explanation}
               </p>
             )}

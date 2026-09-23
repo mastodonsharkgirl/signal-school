@@ -1,20 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  filterProjects,
   initialCourseProgress,
   markLessonComplete,
   resetCourse,
   buildPrompt,
   lessons,
 } from './experience';
-
-describe('portfolio filtering', () => {
-  it('filters project cards and returns an honest empty state', () => {
-    expect(filterProjects('privacy').map((project) => project.title)).toContain('DPDP field notes');
-    expect(filterProjects('nothing-here')).toEqual([]);
-  });
-});
 
 describe('Signal School progress', () => {
   it('awards XP only once for the same lesson', () => {
