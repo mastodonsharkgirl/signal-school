@@ -1,17 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildPrompt,
+  courseLessons,
+  evaluateExercise,
   initialCourseProgress,
   markLessonComplete,
+  promptChecklist,
   resetCourse,
-  buildPrompt,
-  lessons,
 } from './experience';
 
 describe('Signal School progress', () => {
   it('awards XP only once for the same lesson', () => {
-    const once = markLessonComplete(initialCourseProgress, 'task');
-    const twice = markLessonComplete(once, 'task');
+    const once = markLessonComplete(initialCourseProgress, 'brief');
+    const twice = markLessonComplete(once, 'brief');
     expect(once.xp).toBe(60);
     expect(twice).toEqual(once);
   });
@@ -20,13 +22,34 @@ describe('Signal School progress', () => {
     expect(resetCourse()).toEqual(initialCourseProgress);
   });
 
-  it('keeps the injection lesson’s safe answer ahead of the unsafe instruction', () => {
-    const lesson = lessons.find((item) => item.id === 'untrusted');
-    expect(lesson?.answer).toBe(0);
-    expect(lesson?.options[lesson.answer]).toMatch(/source material/i);
+  it('names the failure mode when an exercise choice misses the brief', () => {
+    const exercise = courseLessons.find((item) => item.id === 'evidence');
+    expect(exercise).toBeDefined();
+    const result = evaluateExercise(exercise!, 'publish-all');
+    expect(result.correct).toBe(false);
+    expect(result.failureMode).toMatch(/unsupported claim/i);
   });
 
-  it('does not generate a prompt until a task is supplied', () => {
-    expect(buildPrompt({ task: '', context: '', constraints: '', format: '' })).toBe('');
+  it('builds a prompt and marks only supplied brief fields as complete', () => {
+    const parts = {
+      scenario: 'Project update',
+      task: 'Draft an update',
+      audience: 'A project partner',
+      context: '',
+      sourceBoundary: 'Use only the notes below',
+      constraints: '',
+      format: 'Three bullets',
+    };
+    expect(promptChecklist(parts).map((item) => item.complete)).toEqual([
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true,
+    ]);
+    expect(buildPrompt(parts)).toContain('Audience: A project partner');
+    expect(buildPrompt({ ...parts, task: '' })).toBe('');
   });
 });
