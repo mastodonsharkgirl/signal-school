@@ -27,6 +27,6 @@ Inputs and progress remain in browser memory and clear on refresh. No server, tr
 
 ## Demo
 
-[Open the working hosted course](https://saran-info-preview.pages.dev/signal-school)
+[Open the working hosted course](https://saran.info/signal-school)
 
 This repository contains the same interactive modules in a minimal standalone shell. The linked deployment provides the full visitor experience.
