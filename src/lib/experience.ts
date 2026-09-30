@@ -164,6 +164,11 @@ export function markLessonComplete(progress: CourseProgress, id: LessonId): Cour
   return { ...progress, completed: [...progress.completed, id], xp: progress.xp + 60 };
 }
 export function completeFinalChallenge(progress: CourseProgress): CourseProgress {
+  const completedKnownLessons =
+    progress.completed.length === courseLessons.length &&
+    new Set(progress.completed).size === courseLessons.length &&
+    progress.completed.every((lesson) => courseLessons.some((known) => known.id === lesson));
+  if (!completedKnownLessons) return progress;
   return progress.finalComplete
     ? progress
     : { ...progress, finalComplete: true, xp: progress.xp + 80 };

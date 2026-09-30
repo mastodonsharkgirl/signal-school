@@ -484,15 +484,31 @@
   padding: 0.75rem;
 }
 .reorder span,
-.rubric-score label > span {
+.rubric-question > span:last-child {
   display: flex;
   gap: 0.35rem;
 }
 .reorder button,
 .rubric-score button {
-  min-width: 2.2rem;
-  padding: 0.35rem !important;
+  min-width: 3.25rem;
+  min-height: 2.75rem;
+  padding: 0.55rem !important;
   text-align: center !important;
+}
+.rubric-question {
+  display: grid;
+  gap: 0.5rem;
+  border: 1px solid #40847d;
+  padding: 0.75rem;
+  color: #d5f4ef;
+  line-height: 1.4;
+}
+.rubric-score button[aria-pressed='true'],
+.challenge-options button[aria-pressed='true'] {
+  border-color: var(--cyan);
+  background: #12433f;
+  color: #f1fffc;
+  box-shadow: inset 3px 0 0 var(--cyan);
 }
 .rubric-score > p {
   border-left: 2px solid var(--amber);
@@ -530,6 +546,164 @@
 }
 .finish-challenge {
   margin-top: 0.75rem;
+}
+.preset-actions,
+.case-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.preset-actions button,
+.finish-challenge,
+.case-selector button {
+  min-height: 44px;
+  border: 1px solid #40847d;
+  background: transparent;
+  color: var(--cyan);
+  padding: 0.75rem;
+  font:
+    700 0.8rem/1.25 'Geist Variable',
+    sans-serif;
+  cursor: pointer;
+}
+.preset-actions button:hover,
+.finish-challenge:hover:not(:disabled),
+.case-selector button:hover {
+  border-color: var(--cyan);
+  background: #0b3a39;
+}
+.preset-actions button:focus-visible,
+.finish-challenge:focus-visible,
+.case-selector button:focus-visible,
+.claim-card select:focus-visible,
+.evidence-picker input:focus-visible,
+.handoff-card input:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
+.finish-challenge:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.transfer-rubric {
+  color: #d5f4ef;
+  line-height: 1.55;
+}
+.case-notice {
+  color: var(--amber);
+  min-height: 1.5rem;
+}
+.request-card,
+.source-cards article,
+.claim-card,
+.handoff-card {
+  border: 1px solid #40847d;
+  background: #061a1b;
+  padding: 1rem;
+}
+.request-card {
+  border-left: 3px solid var(--amber);
+  margin: 1rem 0;
+}
+.source-cards,
+.transfer-decisions {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.source-cards {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.source-cards h3 {
+  color: var(--cyan);
+  font-size: 0.9rem;
+}
+.source-cards p,
+.request-card p {
+  color: #d5f4ef;
+  line-height: 1.5;
+}
+.final-challenge .claim-card > label {
+  display: grid;
+  min-width: 0;
+  gap: 0.45rem;
+  color: #d5f4ef;
+}
+.claim-card select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid #40847d;
+  background: #031011;
+  color: #e5fff9;
+  padding: 0.5rem;
+}
+.final-challenge .evidence-picker {
+  display: grid;
+  min-width: 0;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  border: 0;
+  padding: 0;
+}
+.evidence-picker label,
+.handoff-card > label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  color: #d5f4ef;
+  line-height: 1.45;
+}
+.evidence-picker input,
+.handoff-card input {
+  accent-color: var(--cyan);
+  margin-top: 0.2rem;
+}
+.handoff-card input[type='radio'] {
+  width: 1rem;
+  height: 1rem;
+  min-width: 1rem;
+  flex: 0 0 1rem;
+}
+.transfer-feedback {
+  border-left: 3px solid var(--amber);
+  padding-left: 0.75rem;
+  color: #ffd58b;
+  line-height: 1.5;
+}
+.transfer-feedback.matched {
+  border-color: var(--cyan);
+  color: #bffcf2;
+}
+.transfer-summary {
+  margin-top: 1rem;
+  color: #d5f4ef;
+  line-height: 1.5;
+}
+.transfer-summary:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 4px;
+}
+.case-selector button[aria-pressed='true'] {
+  color: #e5fff9;
+  border-color: var(--cyan);
+  background: #0b3a39;
+  box-shadow: inset 3px 0 0 var(--cyan);
+}
+.active-case-title {
+  color: var(--cyan);
+}
+.challenge-locked,
+.evidence-help {
+  border-left: 2px solid var(--amber);
+  padding-left: 0.75rem;
+  color: #d5f4ef;
+  line-height: 1.5;
+}
+@media (max-width: 900px) {
+  .source-cards {
+    grid-template-columns: 1fr;
+  }
 }
 @media (max-width: 760px) {
   .signal-hero {
@@ -599,6 +773,26 @@
   display: grid;
   max-width: 48rem;
   gap: 0.65rem;
+}
+.prompt-example {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border-left: 3px solid var(--amber);
+  background: #0a2527;
+}
+.prompt-example p {
+  margin: 0 0 0.65rem;
+  color: #d5f4ef;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.prompt-example p:last-child {
+  margin-bottom: 0;
+}
+@media (max-width: 900px) {
+  .lesson-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 @media (max-width: 760px) {
   .lab-actions {

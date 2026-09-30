@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Check, Copy, Download, RotateCcw, ShieldCheck } from 'lucide-react';
 import {
   blankPromptParts,
@@ -12,6 +12,15 @@ import {
   resetCourse,
   type PromptParts,
 } from '@/lib/experience';
+import {
+  blankTransferAnswers,
+  evaluateTransferCase,
+  transferCases,
+  type CaseId,
+  type ClaimStatus,
+  type TransferAnswers,
+  type TransferEvaluation,
+} from '@/lib/transfer-challenge';
 
 const presets: Record<string, PromptParts> = {
   blank: blankPromptParts,
@@ -51,8 +60,14 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
   const [progress, setProgress] = useState(initialCourseProgress);
   const [parts, setParts] = useState<PromptParts>(blankPromptParts);
   const [notice, setNotice] = useState('');
-  const [challengeDefects, setChallengeDefects] = useState<string[]>([]);
-  const [challengePick, setChallengePick] = useState<string | null>(null);
+  const [activeCaseId, setActiveCaseId] = useState<CaseId>('equipment');
+  const [transferAnswers, setTransferAnswers] = useState<TransferAnswers>(() =>
+    blankTransferAnswers('equipment'),
+  );
+  const [transferResult, setTransferResult] = useState<TransferEvaluation | null>(null);
+  const [finalAwardGranted, setFinalAwardGranted] = useState(false);
+  const [caseNotice, setCaseNotice] = useState('');
+  const summaryRef = useRef<HTMLDivElement>(null);
   const [contextFacts, setContextFacts] = useState<string[]>([]);
   const [evidenceLabels, setEvidenceLabels] = useState<Record<string, string>>({});
   const [structureOrder, setStructureOrder] = useState(['pending', 'schedule', 'bring']);
@@ -65,6 +80,11 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
   const prompt = useMemo(() => buildPrompt(parts), [parts]);
   const checklist = promptChecklist(parts);
   const courseReady = progress.completed.length === courseLessons.length;
+  const activeTransferCase = transferCases.find((item) => item.id === activeCaseId)!;
+
+  useEffect(() => {
+    if (transferResult) summaryRef.current?.focus();
+  }, [transferResult]);
 
   const choose = (choice: string) => {
     setSelected(choice);
@@ -89,8 +109,11 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
     setSelected(null);
     setParts(blankPromptParts);
     setNotice('Course reset. Nothing was saved.');
-    setChallengeDefects([]);
-    setChallengePick(null);
+    setActiveCaseId('equipment');
+    setTransferAnswers(blankTransferAnswers('equipment'));
+    setTransferResult(null);
+    setFinalAwardGranted(false);
+    setCaseNotice('');
     setContextFacts([]);
     setEvidenceLabels({});
     setStructureOrder(['pending', 'schedule', 'bring']);
@@ -110,22 +133,41 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
   };
   const updatePart = (key: keyof PromptParts, value: string) =>
     setParts((current) => ({ ...current, [key]: value }));
-  const toggleDefect = (defect: string) =>
-    setChallengeDefects((current) =>
-      current.includes(defect) ? current.filter((item) => item !== defect) : [...current, defect],
-    );
+  const editTransferAnswers = (change: (current: TransferAnswers) => TransferAnswers) => {
+    setTransferAnswers((current) => change(current));
+    setTransferResult(null);
+    setFinalAwardGranted(false);
+  };
+  const toggleEvidence = (claimId: string | 'handoff', sourceId: string) => {
+    editTransferAnswers((current) => {
+      const previous =
+        claimId === 'handoff' ? current.handoff.sources : current.claims[claimId].sources;
+      const sources =
+        sourceId === 'no-source'
+          ? previous.includes(sourceId)
+            ? []
+            : ['no-source']
+          : previous.includes(sourceId)
+            ? previous.filter((id) => id !== sourceId)
+            : [...previous.filter((id) => id !== 'no-source'), sourceId];
+      if (claimId === 'handoff') return { ...current, handoff: { ...current.handoff, sources } };
+      return {
+        ...current,
+        claims: { ...current.claims, [claimId]: { ...current.claims[claimId], sources } },
+      };
+    });
+  };
+  const selectCase = (caseId: CaseId) => {
+    setActiveCaseId(caseId);
+    setTransferAnswers(blankTransferAnswers(caseId));
+    setTransferResult(null);
+    setCaseNotice('Case changed. Start with the new sources.');
+  };
   const finishChallenge = () => {
-    const requiredDefects = [
-      'It invents a certificate.',
-      'It says booking is open even though the link is not ready.',
-      'It says to send the update before the organiser checks it.',
-    ];
-    if (
-      courseReady &&
-      challengePick === 'B' &&
-      challengeDefects.length === requiredDefects.length &&
-      requiredDefects.every((defect) => challengeDefects.includes(defect))
-    ) {
+    const evaluation = evaluateTransferCase(activeCaseId, transferAnswers);
+    setTransferResult(evaluation);
+    if (courseReady && evaluation.pass) {
+      setFinalAwardGranted(!progress.finalComplete);
       setProgress((current) => completeFinalChallenge(current));
     }
   };
@@ -141,7 +183,7 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
           <RotateCcw aria-hidden="true" /> Reset course
         </button>
       </header>
-      <main className="signal-content">
+      <div className="signal-content">
         <section className="signal-hero" aria-labelledby="signal-title">
           <p className="signal-eyebrow">Six short exercises</p>
           <h1 id="signal-title">
@@ -358,10 +400,10 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
               <div className="exercise-options evidence-grid">
                 <p>For each statement, choose what the notes tell us.</p>
                 {[
-                  ['starts', 'The workshop starts at 10.', 'Supported'],
-                  ['attend', 'All 18 people will attend.', 'Assumption'],
-                  ['volunteers', 'Two volunteers will definitely attend.', 'Needs verification'],
-                ].map(([id, claim, answer]) => (
+                  ['starts', 'The workshop starts at 10.'],
+                  ['attend', 'All 18 people will attend.'],
+                  ['volunteers', 'The two volunteers have confirmed.'],
+                ].map(([id, claim]) => (
                   <label key={id}>
                     <span>{claim}</span>
                     <select
@@ -372,9 +414,9 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
                       }
                     >
                       <option value="">Choose an answer</option>
-                      <option>{answer}</option>
-                      <option>Contradicted by the notes</option>
-                      <option>Safe to publish without review</option>
+                      <option>Supported</option>
+                      <option>Not established</option>
+                      <option>Contradicted</option>
                     </select>
                   </label>
                 ))}
@@ -383,8 +425,8 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
                   onClick={() => {
                     const correct =
                       evidenceLabels.starts === 'Supported' &&
-                      evidenceLabels.attend === 'Assumption' &&
-                      evidenceLabels.volunteers === 'Needs verification';
+                      evidenceLabels.attend === 'Not established' &&
+                      evidenceLabels.volunteers === 'Contradicted';
                     setSelected(correct ? 'qualified' : 'publish-all');
                     if (correct) setProgress((current) => markLessonComplete(current, lesson.id));
                   }}
@@ -460,11 +502,12 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
                   ['b-evidence', 'Does Draft B say the volunteers still need to confirm?', 'no'],
                   ['b-boundary', 'Does Draft B stay a draft for organiser review?', 'no'],
                 ].map(([id, label]) => (
-                  <label key={id}>
-                    {label}
+                  <div className="rubric-question" role="group" aria-label={label} key={id}>
+                    <span>{label}</span>
                     <span>
                       <button
                         type="button"
+                        aria-label={`${label} Yes`}
                         aria-pressed={rubricScores[id] === 'yes'}
                         onClick={() => setRubricScores((current) => ({ ...current, [id]: 'yes' }))}
                       >
@@ -472,13 +515,14 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
                       </button>
                       <button
                         type="button"
+                        aria-label={`${label} No`}
                         aria-pressed={rubricScores[id] === 'no'}
                         onClick={() => setRubricScores((current) => ({ ...current, [id]: 'no' }))}
                       >
                         No
                       </button>
                     </span>
-                  </label>
+                  </div>
                 ))}
                 <div className="rubric-choice" aria-label="Choose the better draft">
                   <span>Which draft would you choose?</span>
@@ -552,6 +596,11 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
                 Next exercise <ArrowRight aria-hidden="true" />
               </button>
             )}
+            {result?.correct && active === courseLessons.length - 1 && (
+              <a className="next-exercise" href="#challenge-title">
+                Take the final challenge <ArrowRight aria-hidden="true" />
+              </a>
+            )}
           </div>
         </section>
 
@@ -563,6 +612,20 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
               Start with an example or fill in your own details. Your prompt will appear below,
               ready to copy into the AI tool you use. Nothing is sent from this page.
             </p>
+            <div className="prompt-example">
+              <p>
+                <strong>Vague:</strong> “Write something about our workshop.”
+              </p>
+              <p>
+                <strong>Useful:</strong> “Draft three short bullets for registered guests. Use only
+                these notes: Saturday, 10:00, North Hall; two volunteers have not confirmed. Mark
+                anything else as unknown. Leave it as a draft for the organiser.”
+              </p>
+              <p>
+                The second version gives the task, audience, facts, limits and format. Try changing
+                one detail below and see how the prompt changes.
+              </p>
+            </div>
             <div className="preset-actions" aria-label="Example prompts">
               {Object.entries(presets).map(([key, preset]) => (
                 <button
@@ -660,73 +723,213 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
 
         <section className="final-challenge" aria-labelledby="challenge-title">
           <p className="signal-eyebrow">One last challenge</p>
-          <h2 id="challenge-title">Spot the mistakes.</h2>
+          <h2 id="challenge-title">Use the lessons on a new case.</h2>
           <p>
-            Here is a new example. A library workshop is on Tuesday at 16:00, with 12 seats. The
-            booking link is not ready, and the notes say nothing about a certificate. You only need
-            a draft for the organiser to check. Find three problems in Draft A, then choose the
-            better draft.
+            Read the request and the source notes. For each claim, decide what the notes establish
+            and select the evidence for your decision. Then choose the handoff that follows the
+            request.
           </p>
-          <div className="drafts">
-            <article>
-              <h3>Draft A</h3>
-              <p>“Booking is open. Everyone receives a certificate. Send this immediately.”</p>
-            </article>
-            <article>
-              <h3>Draft B</h3>
-              <p>
-                “Draft for the organiser to check: Tuesday at 16:00, with 12 seats. The booking link
-                is not ready. The notes do not mention a certificate.”
-              </p>
-            </article>
-          </div>
-          <fieldset disabled={!courseReady || progress.finalComplete}>
-            <legend>Three problems in Draft A</legend>
-            {[
-              'It invents a certificate.',
-              'It says booking is open even though the link is not ready.',
-              'It says to send the update before the organiser checks it.',
-              'It has a shorter opening sentence.',
-            ].map((defect) => (
-              <label key={defect}>
-                <input
-                  type="checkbox"
-                  checked={challengeDefects.includes(defect)}
-                  onChange={() => toggleDefect(defect)}
-                />{' '}
-                {defect}
-              </label>
-            ))}
-          </fieldset>
-          <div className="challenge-options" aria-label="Choose the better draft">
-            {['A', 'B'].map((draft) => (
+          {!courseReady && (
+            <p className="challenge-locked">
+              Finish all six exercises to unlock checking. You can still preview this practice case.{' '}
+              <a href="#lesson">Continue the exercises</a>.
+            </p>
+          )}
+          <p className="evidence-help">
+            Select the fewest notes needed to justify your decision. Some decisions need two notes.
+            When a note explains a gap or uncertainty, cite that note even when a claim is not
+            established.
+          </p>
+          <ul className="transfer-rubric" aria-label="How to judge the source notes">
+            <li>
+              <strong>Supported:</strong> a source directly establishes the claim.
+            </li>
+            <li>
+              <strong>Contradicted:</strong> an applicable source says something incompatible.
+            </li>
+            <li>
+              <strong>Not established:</strong> the supplied material does not establish the claim.
+            </li>
+            <li>
+              <strong>Sources disagree:</strong> relevant sources conflict and neither resolves it.
+            </li>
+          </ul>
+          <div className="case-selector" aria-label="Choose a practice case">
+            {transferCases.map((item) => (
               <button
-                key={draft}
+                key={item.id}
                 type="button"
-                disabled={!courseReady || progress.finalComplete}
-                className={challengePick === draft ? 'selected' : ''}
-                onClick={() => setChallengePick(draft)}
+                aria-pressed={activeCaseId === item.id}
+                onClick={() => selectCase(item.id)}
               >
-                Choose Draft {draft}
+                {item.title}
               </button>
             ))}
           </div>
+          <p className="case-notice" aria-live="polite">
+            {caseNotice}
+          </p>
+          <h3 className="active-case-title">Current case: {activeTransferCase.title}</h3>
+          <article
+            className="request-card"
+            id={`${activeTransferCase.id}-${activeTransferCase.request.id}`}
+          >
+            <p className="signal-eyebrow">
+              {activeTransferCase.request.title} · {activeTransferCase.request.id}
+            </p>
+            <p>{activeTransferCase.request.text}</p>
+          </article>
+          <div className="source-cards" aria-label={`${activeTransferCase.title} source notes`}>
+            {activeTransferCase.sources.map((source) => (
+              <article key={source.id} id={`${activeTransferCase.id}-${source.id}`}>
+                <h3>
+                  {source.id} · {source.title}
+                </h3>
+                <p>{source.text}</p>
+              </article>
+            ))}
+          </div>
+          <div className="transfer-decisions">
+            {activeTransferCase.claims.map((claim) => {
+              const answer = transferAnswers.claims[claim.id];
+              const feedback = transferResult?.claims[claim.id];
+              return (
+                <fieldset key={claim.id} className="claim-card">
+                  <legend>{claim.text}</legend>
+                  <label id={`${activeCaseId}-${claim.id}-status-label`}>
+                    What do the notes establish?
+                    <select
+                      aria-label={`${claim.text}: what do the notes establish?`}
+                      value={answer.status ?? ''}
+                      onChange={(event) =>
+                        editTransferAnswers((current) => ({
+                          ...current,
+                          claims: {
+                            ...current.claims,
+                            [claim.id]: {
+                              ...current.claims[claim.id],
+                              status: (event.target.value || null) as ClaimStatus | null,
+                            },
+                          },
+                        }))
+                      }
+                    >
+                      <option value="">Choose a judgment</option>
+                      <option value="supported">Supported</option>
+                      <option value="contradicted">Contradicted</option>
+                      <option value="not-established">Not established</option>
+                      <option value="sources-disagree">Sources disagree</option>
+                    </select>
+                  </label>
+                  <fieldset className="evidence-picker">
+                    <legend>Evidence for: {claim.text}</legend>
+                    {activeTransferCase.sources.map((source) => (
+                      <label key={source.id}>
+                        <input
+                          type="checkbox"
+                          aria-label={`${claim.text}: cite ${source.id}, ${source.title}`}
+                          checked={answer.sources.includes(source.id)}
+                          onChange={() => toggleEvidence(claim.id, source.id)}
+                        />{' '}
+                        <a href={`#${activeTransferCase.id}-${source.id}`}>{source.id}</a>
+                      </label>
+                    ))}
+                    <label>
+                      <input
+                        type="checkbox"
+                        aria-label={`${claim.text}: none of these notes explains my decision`}
+                        checked={answer.sources.includes('no-source')}
+                        onChange={() => toggleEvidence(claim.id, 'no-source')}
+                      />{' '}
+                      None of these notes explains my decision
+                    </label>
+                  </fieldset>
+                  {feedback && (
+                    <p className={`transfer-feedback ${feedback.state}`}>
+                      {feedback.feedback}{' '}
+                      {feedback.references.map((reference) => (
+                        <a key={reference} href={`#${activeCaseId}-${reference}`}>
+                          See {reference}
+                        </a>
+                      ))}
+                    </p>
+                  )}
+                </fieldset>
+              );
+            })}
+          </div>
+          <fieldset className="handoff-card">
+            <legend>Which handoff follows the request?</legend>
+            {activeTransferCase.handoffs.map((handoff) => (
+              <label key={handoff.id}>
+                <input
+                  type="radio"
+                  aria-label={`Handoff option: ${handoff.text}`}
+                  name="handoff"
+                  checked={transferAnswers.handoff.optionId === handoff.id}
+                  onChange={() =>
+                    editTransferAnswers((current) => ({
+                      ...current,
+                      handoff: { ...current.handoff, optionId: handoff.id },
+                    }))
+                  }
+                />{' '}
+                {handoff.text}
+              </label>
+            ))}
+            <fieldset className="evidence-picker">
+              <legend>
+                {activeCaseId === 'garden'
+                  ? 'Which notes establish the requested handoff and show the instruction you must set aside?'
+                  : 'Which notes justify the audience and next action?'}
+              </legend>
+              {[activeTransferCase.request, ...activeTransferCase.sources].map((source) => (
+                <label key={source.id}>
+                  <input
+                    type="checkbox"
+                    aria-label={`Handoff evidence: cite ${source.id}, ${source.title}`}
+                    checked={transferAnswers.handoff.sources.includes(source.id)}
+                    onChange={() => toggleEvidence('handoff', source.id)}
+                  />{' '}
+                  <a href={`#${activeTransferCase.id}-${source.id}`}>{source.id}</a>
+                </label>
+              ))}
+            </fieldset>
+            {transferResult && (
+              <p className={`transfer-feedback ${transferResult.handoff.state}`}>
+                {transferResult.handoff.feedback}{' '}
+                {transferResult.handoff.references.map((reference) => (
+                  <a key={reference} href={`#${activeCaseId}-${reference}`}>
+                    See {reference}
+                  </a>
+                ))}
+              </p>
+            )}
+          </fieldset>
           <button
             className="finish-challenge"
             type="button"
-            disabled={!courseReady || progress.finalComplete || !challengePick}
+            disabled={!courseReady}
             onClick={finishChallenge}
           >
-            Check final answer
+            Check this case
           </button>
-          <p aria-live="polite">
-            {progress.finalComplete
-              ? 'Challenge complete — 80 XP earned. Draft B sticks to the notes and leaves the final check to the organiser.'
+          <div className="transfer-summary" ref={summaryRef} tabIndex={-1} aria-live="polite">
+            <h3>Case feedback</h3>
+            {transferResult?.pass
+              ? finalAwardGranted
+                ? 'Your choices match this case’s rubric. Final challenge complete · 80 XP earned.'
+                : 'This case matches the rubric. You already earned the final challenge XP.'
               : !courseReady
                 ? `${courseLessons.length - progress.completed.length} exercises remain before the challenge unlocks.`
-                : challengePick && (challengePick !== 'B' || challengeDefects.length !== 3)
-                  ? 'Try again: find the three things Draft A gets wrong, then choose the draft that sticks to the notes.'
-                  : 'Tick three problems, choose a draft, then check your answer.'}
+                : transferResult
+                  ? 'Review the feedback for each decision, then try the case again.'
+                  : 'Choose a judgment, precise evidence, and a handoff before checking this case.'}
+          </div>
+          <p className="further-reading">
+            <a href="https://jugaad.best/tools/evals/">Try this with your own drafts</a> using a
+            manual comparison against the source passages you choose. Nothing from this course is
+            transferred.
           </p>
           <p className="further-reading">
             Further reading:{' '}
@@ -748,7 +951,7 @@ export default function SignalSchool({ portfolioHref = '/' }: { portfolioHref?: 
             .
           </p>
         </section>
-      </main>
+      </div>
     </div>
   );
 }

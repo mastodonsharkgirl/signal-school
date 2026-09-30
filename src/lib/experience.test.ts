@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildPrompt,
+  completeFinalChallenge,
   courseLessons,
   evaluateExercise,
   initialCourseProgress,
@@ -20,6 +21,23 @@ describe('Signal School progress', () => {
 
   it('resets every completion and XP total', () => {
     expect(resetCourse()).toEqual(initialCourseProgress);
+  });
+
+  it('only awards final XP after all six known lessons are complete and only once', () => {
+    expect(completeFinalChallenge(initialCourseProgress)).toEqual(initialCourseProgress);
+    const completed = courseLessons.reduce(
+      (progress, lesson) => markLessonComplete(progress, lesson.id),
+      initialCourseProgress,
+    );
+    const awarded = completeFinalChallenge(completed);
+    expect(awarded.xp).toBe(440);
+    expect(completeFinalChallenge(awarded)).toEqual(awarded);
+    const duplicate = completeFinalChallenge({
+      ...completed,
+      completed: [...completed.completed, 'brief'],
+    });
+    expect(duplicate.finalComplete).toBe(false);
+    expect(duplicate.xp).toBe(360);
   });
 
   it('names the failure mode when an exercise choice misses the brief', () => {
