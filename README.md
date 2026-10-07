@@ -1,6 +1,6 @@
 # Signal School
 
-Practise writing clearer instructions and checking the answers. Six short exercises lead into three fictional cases about corrections, conflicting notes, and uncertainty. Feedback follows an authored teaching rubric; it is not a general skills assessment or an AI evaluator.
+Signal School starts in a Workroom for checking an AI-assisted draft against its source notes before sharing it. It includes three fictional workplace practice cases: a supplier decision, release readiness, and an incident update. The six short foundation exercises remain under Learn, and the original source-aware cases remain in the separate Final challenge workspace. Feedback follows authored teaching references; it is not a general skills assessment or an AI evaluator.
 
 Built by Saran Vashisht. A clean source snapshot of newly developed modules; no private repository history is included.
 
@@ -26,10 +26,10 @@ Read [the learning design and state boundaries](docs/ARCHITECTURE.md). XP reward
 
 ## Privacy
 
-Inputs and progress remain in browser memory and clear on refresh. No server, tracking, accounts, API keys or paid AI service. Clipboard access occurs only when a visitor chooses Copy. External links have their own privacy policies.
+Inputs and progress remain in browser memory and clear on refresh. A claim check stays out of a handoff until it is saved; the download dialog makes that choice explicit. Replacing meaningful Workroom material or resetting the course also asks before it clears anything. No server, tracking, accounts, API keys or paid AI service. Clipboard access occurs only when a visitor chooses Copy. External links have their own privacy policies.
 
-## Demo
+## Local preview
 
-[Open the working hosted course](https://saran.info/signal-school)
+[Open the existing hosted course](https://saran.info/signal-school)
 
-This repository contains the same interactive modules in a minimal standalone shell. The linked deployment provides the full visitor experience.
+The expanded Workroom is verified in this standalone checkout. The linked portfolio page has its own release and verification state; it is not evidence that this local Workroom source is deployed there.
