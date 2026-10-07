@@ -1,3 +1,4 @@
+import { markdownToHtml } from 'satteri';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -6,6 +7,7 @@ import {
   applyContentChange,
   blankWorkroom,
   captureExactQuote,
+  createMarkdownReviewPack,
   createReviewPack,
   createWorkroomFromCase,
   evaluateAuthoredCase,
@@ -312,6 +314,128 @@ describe('workroom review boundaries', () => {
     state.reviews = [selected];
 
     expect(validateReview(selected, state.sources, state.draft)).toBe('');
+    expect(evaluateAuthoredCase(state)).toMatchObject({
+      mode: 'authored',
+      matches: expect.arrayContaining([{ judgmentId: reference.id, state: 'different' }]),
+    });
+  });
+
+  it('keeps every authored Markdown handoff value literal, including current content and reviewed history', () => {
+    const forged = [
+      '# FORGED APPROVED RESULT',
+      '## FORGED SOURCE APPROVAL',
+      '```',
+      '``````',
+      '~~~',
+      '~~~~~~~~',
+      '<a href="https://example.test/forged">forged link</a>',
+      '[forged Markdown link](https://example.test/forged)',
+      '__proto__',
+      '=SUM(A1:A2)',
+    ].join('\n');
+    const sourceTitle = 'Source title\n# FORGED SOURCE APPROVAL\n```\n~~~';
+    const reviewed = reviewedState();
+    reviewed.brief = {
+      task: `Archived task\n${forged}`,
+      audience: `Archived audience\n${forged}`,
+      output: `Archived output\n${forged}`,
+      boundary: `Archived boundary\n${forged}`,
+      unknowns: `Archived unknowns\n${forged}`,
+    };
+    reviewed.criteria = [{ id: 'CR-1', text: `Archived criterion\n${forged}`, review: 'met' }];
+    reviewed.sources = [{ id: 'SRC-1', title: sourceTitle, text: `Cited evidence.\n${forged}` }];
+    reviewed.draft = `Draft claim.\n${forged}`;
+    reviewed.reviewerNote = `Archived reviewer note\n${forged}`;
+    reviewed.reviews = [{
+      id: 'CL-1',
+      claim: `Archived claim\n${forged}`,
+      draftQuote: 'Draft claim.',
+      draftOffset: 0,
+      citations: [{ id: 'CIT-1', sourceId: 'SRC-1', quote: 'Cited evidence.', offset: 0 }],
+      verdict: 'supported',
+      reason: `Archived reason\n${forged}`,
+    }];
+
+    const current = applyContentChange(
+      reviewed,
+      { draft: `Current draft\n${forged}` },
+      '2026-10-07T16:00:00.000Z',
+    );
+    current.brief = {
+      task: `Current task\n${forged}`,
+      audience: `Current audience\n${forged}`,
+      output: `Current output\n${forged}`,
+      boundary: `Current boundary\n${forged}`,
+      unknowns: `Current unknowns\n${forged}`,
+    };
+    current.criteria = [{ id: 'CR-2', text: `Current criterion\n${forged}`, review: 'not-reviewed' }];
+    current.sources = [{ id: 'SRC-2', title: sourceTitle, text: `Current evidence.\n${forged}` }];
+    current.reviewerNote = `Current reviewer note\n${forged}`;
+
+    const markdown = createMarkdownReviewPack(current);
+    const rendered = markdownToHtml(markdown).html;
+
+    expect(markdown).toContain(forged);
+    expect(markdown).toContain(sourceTitle);
+    expect(rendered).not.toContain('<h1>FORGED APPROVED RESULT</h1>');
+    expect(rendered).not.toContain('<h2>FORGED SOURCE APPROVAL</h2>');
+    expect(rendered).not.toContain('<a href="https://example.test/forged"');
+    expect(rendered).toContain('=SUM(A1:A2)');
+  });
+
+  it('flags incompatible duplicate reviews for the same authored draft span as conflicting', () => {
+    const state = createWorkroomFromCase('supplier');
+    const reference = advancedCases.find((item) => item.id === 'supplier')!.reference.judgments[4]!;
+    const matching: ReviewEntry = {
+      id: 'CL-1',
+      claim: reference.claim,
+      draftQuote: reference.draftQuote,
+      draftOffset: reference.draftOffset,
+      citations: reference.citations.map((citation, index) => ({ ...citation, id: `CIT-${index + 1}` })),
+      verdict: reference.verdict,
+      reason: 'The selected excerpts support the authored practice finding.',
+    };
+    const conflicting: ReviewEntry = {
+      ...matching,
+      id: 'CL-2',
+      citations: matching.citations.map((citation, index) => ({ ...citation, id: `CIT-${index + 3}` })),
+      verdict: 'supported',
+      reason: 'A second saved decision reaches the opposite verdict.',
+    };
+    state.reviews = [matching, conflicting];
+
+    expect(validateReview(matching, state.sources, state.draft)).toBe('');
+    expect(validateReview(conflicting, state.sources, state.draft)).toBe('');
+    expect(evaluateAuthoredCase(state)).toMatchObject({
+      mode: 'authored',
+      matches: expect.arrayContaining([{ judgmentId: reference.id, state: 'conflicting' }]),
+    });
+  });
+
+  it('does not call duplicated same-verdict reviews a reference match when one lacks the authored evidence', () => {
+    const state = createWorkroomFromCase('supplier');
+    const reference = advancedCases.find((item) => item.id === 'supplier')!.reference.judgments[4]!;
+    const matching: ReviewEntry = {
+      id: 'CL-1',
+      claim: reference.claim,
+      draftQuote: reference.draftQuote,
+      draftOffset: reference.draftOffset,
+      citations: reference.citations.map((citation, index) => ({ ...citation, id: `CIT-${index + 1}` })),
+      verdict: reference.verdict,
+      reason: 'The selected excerpts support the authored practice finding.',
+    };
+    const unrelatedSource = state.sources.find((source) => !reference.citations.some((citation) => citation.sourceId === source.id))!;
+    const unrelatedQuote = unrelatedSource.text.slice(0, unrelatedSource.text.indexOf('\n'));
+    const incomplete: ReviewEntry = {
+      ...matching,
+      id: 'CL-2',
+      citations: [{ id: 'CIT-3', sourceId: unrelatedSource.id, quote: unrelatedQuote, offset: 0 }],
+      reason: 'This valid excerpt does not cover the fixed reference evidence.',
+    };
+    state.reviews = [matching, incomplete];
+
+    expect(validateReview(matching, state.sources, state.draft)).toBe('');
+    expect(validateReview(incomplete, state.sources, state.draft)).toBe('');
     expect(evaluateAuthoredCase(state)).toMatchObject({
       mode: 'authored',
       matches: expect.arrayContaining([{ judgmentId: reference.id, state: 'different' }]),

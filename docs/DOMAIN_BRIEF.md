@@ -8,6 +8,8 @@ The product teaches a repeatable route: state the request, keep relevant evidenc
 
 - Exercise feedback comes from authored deterministic answers and references, never a model or keyword scoring.
 - Workroom claim findings and acceptance criteria are recorded by the user. Fictional reference judgments appear only for an unchanged practice case; own work is always manual.
+- A practice reference reports conflicting saved judgments explicitly. A positive match requires every saved check of that draft passage to cover the reference verdict and excerpts.
+- Markdown handoffs preserve authored text as literal labelled content, including earlier snapshots. Pasted formatting cannot become a status or heading supplied by the app.
 - Editing a brief, source note, criterion, or draft archives the existing reviewed version and clears the current decisions. Earlier versions remain distinguishable from the current material.
 - A partly completed claim check is visibly unfinished and is never silently included in a handoff. Downloading offers a save, return, discard, or explicit without-it choice.
 - Changing a meaningful Workroom, opening a valid handoff over it, clearing it, or resetting the course asks the person to keep editing, download first, or continue deliberately. Pristine practice cases can still be changed directly.

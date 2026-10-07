@@ -793,7 +793,7 @@ export type AuthoredCaseEvaluation =
       available: true;
       caseTitle: string;
       reference: AdvancedCase['reference'];
-      matches: { judgmentId: string; state: 'not-reviewed' | 'matches-reference' | 'different' }[];
+      matches: { judgmentId: string; state: 'not-reviewed' | 'matches-reference' | 'different' | 'conflicting' }[];
     };
 
 export function evaluateAuthoredCase(state: WorkroomState): AuthoredCaseEvaluation {
@@ -810,7 +810,10 @@ export function evaluateAuthoredCase(state: WorkroomState): AuthoredCaseEvaluati
       (review) => review.draftQuote === judgment.draftQuote && review.draftOffset === judgment.draftOffset,
     );
     if (!decisions.length) return { judgmentId: judgment.id, state: 'not-reviewed' as const };
-    const matchesReference = decisions.some((decision) => (
+    if (new Set(decisions.map((decision) => decision.verdict)).size > 1) {
+      return { judgmentId: judgment.id, state: 'conflicting' as const };
+    }
+    const matchesReference = decisions.every((decision) => (
       decision.verdict === judgment.verdict
       && judgment.citations.every((referenceCitation) => decision.citations.some((citation) => (
         citation.sourceId === referenceCitation.sourceId
@@ -860,35 +863,61 @@ export function serializeReviewPack(state: WorkroomState): SerializeReviewPackRe
   return { ok: true, pack, text, byteLength };
 }
 
-function quoteMarkdown(value: string) {
-  return value.replace(/>/g, '\\>');
+function markdownCodeFence(value: string) {
+  let longestBacktickRun = 0;
+  for (const match of value.matchAll(/`+/g)) {
+    longestBacktickRun = Math.max(longestBacktickRun, match[0].length);
+  }
+  return '`'.repeat(Math.max(3, longestBacktickRun + 1));
+}
+
+/**
+ * Keep every learner-authored value as data. The fence is longer than any
+ * backtick run in the value, so a pasted fence cannot close the data block
+ * and create application-looking Markdown below it.
+ */
+function markdownLiteral(label: string, value: string) {
+  const fence = markdownCodeFence(value);
+  return [`**${label}**`, `${fence}text`, value, fence].join('\n');
 }
 
 function markdownForContent(content: ReviewSnapshotContent, heading: string) {
   const criteria = content.criteria.length
-    ? content.criteria.map((criterion) => `- **${criterion.id} — ${criterion.review}:** ${criterion.text}`).join('\n')
+    ? content.criteria.map((criterion) => [
+        `#### Criterion ${criterion.id}`,
+        `Recorded decision: ${criterion.review}`,
+        markdownLiteral('Criterion text', criterion.text),
+      ].join('\n\n')).join('\n\n')
     : '- None recorded.';
   const sources = content.sources.length
-    ? content.sources.map((source) => `### ${source.id} — ${source.title}\n\n${source.text}`).join('\n\n')
+    ? content.sources.map((source) => [
+        `#### Source ${source.id}`,
+        markdownLiteral('Source title', source.title),
+        markdownLiteral('Source text', source.text),
+      ].join('\n\n')).join('\n\n')
     : 'No source cards recorded.';
   const reviews = content.reviews.length
     ? content.reviews.map((review) => [
-        `### ${review.id} — ${review.verdict}`,
-        `**Claim:** ${review.claim}`,
-        `**Draft quote (offset ${review.draftOffset}):** “${review.draftQuote}”`,
-        '**Citations:**',
-        ...review.citations.map((citation) => `- ${citation.id}: [${citation.sourceId}] offset ${citation.offset} — “${citation.quote}”`),
-        `**Why:** ${review.reason}`,
+        `#### Claim check ${review.id}`,
+        `Recorded finding: ${review.verdict}`,
+        markdownLiteral('Claim', review.claim),
+        markdownLiteral(`Draft quote at offset ${review.draftOffset}`, review.draftQuote),
+        'Citation excerpts:',
+        ...review.citations.map((citation) => [
+          `- Citation ${citation.id} from ${citation.sourceId} at offset ${citation.offset}`,
+          markdownLiteral('Exact excerpt', citation.quote),
+        ].join('\n')),
+        markdownLiteral('Reason recorded', review.reason),
       ].join('\n\n')).join('\n\n')
     : 'No claim checks recorded.';
   return [
     `## ${heading}`,
     '### Request',
-    `- **Task:** ${content.brief.task}`,
-    `- **Audience:** ${content.brief.audience}`,
-    `- **Requested output:** ${content.brief.output}`,
-    `- **Boundary:** ${content.brief.boundary}`,
-    `- **Known unknowns:** ${content.brief.unknowns || 'None recorded.'}`,
+    markdownLiteral('Task', content.brief.task),
+    markdownLiteral('Audience', content.brief.audience),
+    markdownLiteral('Requested output', content.brief.output),
+    markdownLiteral('Boundary', content.brief.boundary),
+    markdownLiteral('Known unknowns', content.brief.unknowns),
     '',
     '### Acceptance criteria and manual decisions',
     criteria,
@@ -897,29 +926,32 @@ function markdownForContent(content: ReviewSnapshotContent, heading: string) {
     sources,
     '',
     '### Exact draft reviewed',
-    '```text',
-    quoteMarkdown(content.draft),
-    '```',
+    markdownLiteral('Exact draft', content.draft),
     '',
     '### Claim evidence and findings',
     reviews,
     '',
     '### Handoff note',
-    content.reviewerNote || 'No handoff note recorded.',
+    markdownLiteral('Note for the next reviewer', content.reviewerNote),
   ].join('\n');
 }
 
 export function createMarkdownReviewPack(state: WorkroomState): string {
   const summary = getReviewSummary(state);
   const unresolved = summary.unresolvedItems.length
-    ? summary.unresolvedItems.map((item) => `- **${item.kind} ${item.id}:** ${item.message}`).join('\n')
+    ? summary.unresolvedItems.map((item, index) => [
+        `### Open item ${index + 1}`,
+        markdownLiteral('Recorded item kind', item.kind),
+        markdownLiteral('Recorded item ID', item.id),
+        markdownLiteral('Recorded message', item.message),
+      ].join('\n\n')).join('\n\n')
     : '- None recorded. A human reviewer still decides whether to use the draft.';
   const history = state.priorSnapshots.length
     ? state.priorSnapshots.map((snapshot) => [
         `### ${snapshot.id} — archived ${snapshot.archivedAt}`,
-        `- **Reason:** ${snapshot.reason}`,
-        `- **Reviewed fingerprint:** \`${snapshot.fingerprint}\``,
-        `- **Recorded status:** ${snapshot.status}`,
+        markdownLiteral('Archive reason', snapshot.reason),
+        markdownLiteral('Reviewed fingerprint', snapshot.fingerprint),
+        markdownLiteral('Recorded status', snapshot.status),
         '',
         markdownForContent(snapshot.content, 'Archived reviewed content'),
       ].join('\n')).join('\n\n')
@@ -934,9 +966,7 @@ export function createMarkdownReviewPack(state: WorkroomState): string {
     markdownForContent(contentFromState(state), 'Current revision'),
     '',
     '## Prompt used with the external tool',
-    '```text',
-    buildPortablePrompt(state),
-    '```',
+    markdownLiteral('Portable prompt', buildPortablePrompt(state)),
     '',
     '## What still needs checking',
     unresolved,

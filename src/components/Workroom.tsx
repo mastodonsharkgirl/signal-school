@@ -843,7 +843,7 @@ const Workroom = forwardRef<WorkroomHandle, WorkroomProps>(function Workroom({
                       <strong>{judgment.verdict}</strong> — “{judgment.draftQuote}”
                       <p>{judgment.explanation}</p>
                       <p>{judgment.citations.map((citation) => `[${citation.sourceId}] “${citation.quote}”`).join(' · ')}</p>
-                      <small>{match?.state === 'matches-reference' ? 'Your saved verdict and excerpts cover this fixed reference.' : match?.state === 'different' ? 'Your verdict or selected excerpts differ from this reference; inspect the evidence together.' : 'Not reviewed by you yet.'}</small>
+                      <small>{match?.state === 'matches-reference' ? 'These saved checks cover the practice reference.' : match?.state === 'conflicting' ? 'Your saved checks disagree about this claim. Resolve them before using the reference.' : match?.state === 'different' ? 'Your verdict or selected excerpts differ from this reference; inspect the evidence together.' : 'Not reviewed by you yet.'}</small>
                     </li>
                   );
                 })}

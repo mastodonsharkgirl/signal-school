@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { Buffer } from 'node:buffer';
 import { readFileSync } from 'node:fs';
+import { markdownToHtml } from 'satteri';
 
 test.beforeEach(async ({ page }) => {
   const policy = readFileSync('dist/_headers', 'utf8').match(/Content-Security-Policy: (.+)/)?.[1];
@@ -97,6 +98,25 @@ test('Signal School Workroom does not submit a request', async ({ page }) => {
   await page.getByRole('button', { name: '2. Build prompt' }).click();
   await expect(page.locator('pre[aria-label="Prompt to use"]')).toContainText('Draft a short project update.');
   expect(requests).toEqual([]);
+});
+
+test('Signal School exports browser-entered source text as literal Markdown data', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('astro-island:not([ssr])').first().waitFor();
+  await page.getByRole('button', { name: /open workroom/i }).click();
+  await page.getByRole('textbox', { name: 'SUP-01 source title' }).fill('# BROWSER-FORGED-HEADING\n<a href="https://example.invalid/">forged link</a>\n``````');
+  await page.getByRole('button', { name: '4. Download handoff' }).click();
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download Markdown handoff' }).click();
+  const downloadedPath = await (await downloadPromise).path();
+  expect(downloadedPath).not.toBeNull();
+  const markdown = readFileSync(downloadedPath!, 'utf8');
+  const rendered = markdownToHtml(markdown).html;
+
+  expect(markdown).toContain('# BROWSER-FORGED-HEADING');
+  expect(rendered).not.toContain('<h1>BROWSER-FORGED-HEADING</h1>');
+  expect(rendered).not.toContain('<a href="https://example.invalid/"');
 });
 
 test('Signal School workspace rail moves learners between named work areas', async ({ page }) => {

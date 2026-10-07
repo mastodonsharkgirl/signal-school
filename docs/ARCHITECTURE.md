@@ -22,6 +22,8 @@ The Workroom never rates an arbitrary draft. It records only claims the person s
 
 The in-progress claim-check form is deliberately separate from the saved review state. It is marked unfinished until the person saves it, and a handoff download must offer a return, save, discard, or explicit without-it decision. Case changes, starting own work, clear, valid JSON restore, and the global reset use the native confirmation dialog whenever the current Workroom is meaningful; it restores focus on cancellation and offers a handoff route before replacement. Parsed JSON is still validated before this choice, so an invalid file leaves the current Workroom untouched.
 
+Markdown handoffs fence authored values as literal data, using a delimiter longer than any backtick run in that value. The same boundary covers current content, complete archived snapshots, unresolved messages and the portable prompt. Formatting in source material cannot supply application-authored headings or approval labels. The reference evaluator examines all saved decisions for each exact draft span: incompatible verdicts are conflicting, and a positive result requires every decision to cover the fixed reference evidence.
+
 ## Selective host integration
 
 When the Workroom is brought into the portfolio host, copy `workroom.ts`, `Workroom.tsx`, and the related scoped CSS alongside a narrow `SignalSchool` integration. Do not replace the host’s `experience.ts` wholesale: it also exports unrelated portfolio material. Preserve the host’s existing CSP and browser checks, then run its separate QA suite.
