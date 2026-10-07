@@ -1323,7 +1323,7 @@
   font-size: .84rem;
 }
 .criterion {
-  grid-template-columns: minmax(7rem, .34fr) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   margin-block: .65rem;
   border: 1px solid #28505a;
   border-radius: .55rem;
@@ -1332,6 +1332,10 @@
 }
 .criterion textarea {
   min-block-size: 3.25rem;
+}
+.criterion .quiet-action {
+  align-self: start;
+  justify-self: start;
 }
 .quiet-action {
   align-self: end;
